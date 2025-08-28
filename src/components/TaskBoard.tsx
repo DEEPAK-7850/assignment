@@ -63,7 +63,7 @@ const TaskColumn = ({ title, tasks, columnId, borderColorClass, dotColorClass, o
   const handleDeleteTask = (taskId: string) => { if (window.confirm("Are you sure?")) dispatch(deleteTask({ columnId, taskId })); };
   const handleChangePriority = (taskId: string) => dispatch(changeTaskPriority({ columnId, taskId }));
   return (
-    <div className="w-full bg-gray-100 rounded-lg p-4 flex flex-col">
+    <div className="w-full bg-gray-200 rounded-lg p-4 flex flex-col">
       <div className={`flex justify-between items-center border-b-4 ${borderColorClass} pb-4 mb-4`}>
         <div className="flex items-center gap-2">
           <div className={`w-2 h-2 rounded-full ${dotColorClass}`}></div>

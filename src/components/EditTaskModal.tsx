@@ -1,4 +1,3 @@
-// src/components/EditTaskModal.tsx
 
 import { useState, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
@@ -17,6 +16,7 @@ export default function EditTaskModal({ isOpen, onClose, task, columnId }: EditT
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<'Low' | 'High' | 'Completed'>('Low');
+  const [dueDate, setDueDate] = useState<string | null>(null); // Added for due date
   const dispatch = useDispatch<AppDispatch>();
 
   useEffect(() => {
@@ -24,13 +24,14 @@ export default function EditTaskModal({ isOpen, onClose, task, columnId }: EditT
       setTitle(task.title);
       setDescription(task.description);
       setPriority(task.priority);
+      setDueDate(task.dueDate); // Initialize dueDate
     }
   }, [task]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
-    dispatch(editTask({ columnId, taskId: task.id, updates: { title, description, priority } }));
+    dispatch(editTask({ columnId, taskId: task.id, updates: { title, description, priority, dueDate } }));
     onClose();
   };
 
@@ -55,11 +56,21 @@ export default function EditTaskModal({ isOpen, onClose, task, columnId }: EditT
             </div>
             <div>
               <label htmlFor="edit-priority" className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
-              <select id="edit-priority" value={priority} onChange={(e) => setPriority(e.target.value as any)} className="w-full mt-1 p-2 border rounded-md">
+              <select id="edit-priority" value={priority} onChange={(e) => setPriority(e.target.value as 'Low' | 'High' | 'Completed')} className="w-full mt-1 p-2 border rounded-md">
                 <option value="Low">Low</option>
                 <option value="High">High</option>
                 {columnId === 'done' && <option value="Completed">Completed</option>}
               </select>
+            </div>
+            <div>
+              <label htmlFor="edit-dueDate" className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+              <input
+                type="date"
+                id="edit-dueDate"
+                value={dueDate || ''}
+                onChange={(e) => setDueDate(e.target.value || null)}
+                className="w-full mt-1 p-2 border rounded-md"
+              />
             </div>
           </div>
           <div className="mt-6 flex justify-end gap-3">

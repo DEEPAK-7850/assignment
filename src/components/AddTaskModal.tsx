@@ -1,4 +1,4 @@
-// src/components/AddTaskModal.tsx
+
 
 import { useState } from 'react';
 import { useDispatch } from 'react-redux';
@@ -15,6 +15,7 @@ export default function AddTaskModal({ isOpen, onClose }: AddTaskModalProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<'Low' | 'High'>('Low');
+  const [dueDate, setDueDate] = useState<string | null>(null); // Added for due date
   
   const dispatch = useDispatch<AppDispatch>();
 
@@ -22,12 +23,13 @@ export default function AddTaskModal({ isOpen, onClose }: AddTaskModalProps) {
     e.preventDefault();
     if (!title.trim()) return; // Simple validation
 
-    dispatch(addTask({ title, description, priority }));
+    dispatch(addTask({ title, description, priority, dueDate }));
     
     // Reset form and close modal
     setTitle('');
     setDescription('');
     setPriority('Low');
+    setDueDate(null);
     onClose();
   };
 
@@ -76,6 +78,16 @@ export default function AddTaskModal({ isOpen, onClose }: AddTaskModalProps) {
                 <option value="Low">Low</option>
                 <option value="High">High</option>
               </select>
+            </div>
+            <div>
+              <label htmlFor="add-dueDate" className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+              <input
+                type="date"
+                id="add-dueDate"
+                value={dueDate || ''}
+                onChange={(e) => setDueDate(e.target.value || null)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              />
             </div>
           </div>
           <div className="mt-6 flex justify-end gap-3">

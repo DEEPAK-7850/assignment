@@ -1,4 +1,3 @@
-// src/redux/tasksSlice.ts
 
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
@@ -11,6 +10,7 @@ export interface Task {
   comments: number;
   files: number;
   members: string[];
+  dueDate: string | null; // Added for due date
 }
 
 interface TasksState {
@@ -36,9 +36,9 @@ const loadState = (): TasksState => {
     if (serializedState === null) {
       // If nothing is in localStorage, return the default initial data
       return {
-        todo: [ { id: "1", title: "Brainstorming", description: "Brainstorming brings team members' diverse experience into play.", priority: "Low", priorityColor: "bg-orange-100 text-orange-500", comments: 12, files: 0, members: ["https://i.pravatar.cc/24?img=1"] } ],
-        inProgress: [ { id: "4", title: "Onboarding Illustrations", description: "...", priority: "Low", priorityColor: "bg-orange-100 text-orange-500", comments: 14, files: 15, members: ["https://i.pravatar.cc/24?img=5"] } ],
-        done: [ { id: "7", title: "Design System", description: "It just needs to adapt the UI from what you did before.", priority: "Completed", priorityColor: "bg-green-100 text-green-500", comments: 12, files: 15, members: ["https://i.pravatar.cc/24?img=9"] } ]
+        todo: [ { id: "1", title: "Brainstorming", description: "Brainstorming brings team members' diverse experience into play.", priority: "Low", priorityColor: "bg-orange-100 text-orange-500", comments: 12, files: 0, members: ["https://i.pravatar.cc/24?img=1"], dueDate: null } ],
+        inProgress: [ { id: "4", title: "Onboarding Illustrations", description: "...", priority: "Low", priorityColor: "bg-orange-100 text-orange-500", comments: 14, files: 15, members: ["https://i.pravatar.cc/24?img=5"], dueDate: "2025-08-30" } ],
+        done: [ { id: "7", title: "Design System", description: "It just needs to adapt the UI from what you did before.", priority: "Completed", priorityColor: "bg-green-100 text-green-500", comments: 12, files: 15, members: ["https://i.pravatar.cc/24?img=9"], dueDate: "2025-08-27" } ]
       };
     }
     return JSON.parse(serializedState);
@@ -54,7 +54,7 @@ const tasksSlice = createSlice({
   name: 'tasks',
   initialState,
   reducers: {
-    addTask: (state, action: PayloadAction<{ title: string; description: string; priority: 'Low' | 'High' }>) => {
+    addTask: (state, action: PayloadAction<{ title: string; description: string; priority: 'Low' | 'High'; dueDate: string | null }>) => {
       const priorityColor = action.payload.priority === 'Low' ? 'bg-orange-100 text-orange-500' : 'bg-red-100 text-red-500';
       const newTask: Task = {
         id: crypto.randomUUID(),
@@ -65,6 +65,7 @@ const tasksSlice = createSlice({
         comments: 0,
         files: 0,
         members: [],
+        dueDate: action.payload.dueDate,
       };
       state.todo.push(newTask);
       saveState(state);
@@ -86,13 +87,14 @@ const tasksSlice = createSlice({
       destColumn.splice(destinationIndex, 0, movedTask);
       saveState(state);
     },
-    editTask: (state, action: PayloadAction<{ columnId: keyof TasksState, taskId: string, updates: { title: string; description: string; priority: 'Low' | 'High' | 'Completed' } }>) => {
+    editTask: (state, action: PayloadAction<{ columnId: keyof TasksState, taskId: string, updates: { title: string; description: string; priority: 'Low' | 'High' | 'Completed'; dueDate: string | null } }>) => {
       const { columnId, taskId, updates } = action.payload;
       const task = state[columnId].find(task => task.id === taskId);
       if (task) {
         task.title = updates.title;
         task.description = updates.description;
         task.priority = updates.priority;
+        task.dueDate = updates.dueDate;
         if (updates.priority === 'Low') task.priorityColor = 'bg-orange-100 text-orange-500';
         else if (updates.priority === 'High') task.priorityColor = 'bg-red-100 text-red-500';
         else task.priorityColor = 'bg-green-100 text-green-500';

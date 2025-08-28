@@ -1,6 +1,5 @@
-// src/components/TaskBoard.tsx
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, MoreHorizontal, Filter, Calendar, Share2, Edit2, Link, LayoutGrid, List, Trash2, Pencil } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { useSelector, useDispatch } from "react-redux";
@@ -11,6 +10,24 @@ import EditTaskModal from "./EditTaskModal";
 
 const TaskCard = ({ task, onPriorityChange, onDelete, onEdit }: { task: Task, onPriorityChange: () => void, onDelete: () => void, onEdit: () => void }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  // Determine due date styling
+  let dueDateStyle = "text-gray-500";
+  let dueDateText = task.dueDate ? `Due: ${task.dueDate}` : "No due date";
+  if (task.dueDate) {
+    const now = new Date();
+    const due = new Date(task.dueDate);
+    const timeDiff = due.getTime() - now.getTime();
+    const oneDayInMs = 24 * 60 * 60 * 1000;
+    if (timeDiff < -oneDayInMs) {
+      dueDateStyle = "text-red-500 font-medium"; // Overdue
+      dueDateText = `Overdue: ${task.dueDate}`;
+    } else if (timeDiff <= oneDayInMs) {
+      dueDateStyle = "text-yellow-600 font-medium"; // Due soon
+      dueDateText = `Due soon: ${task.dueDate}`;
+    }
+  }
+
   return (
     <div className="bg-white p-4 rounded-xl border space-y-3 relative">
       <div className="flex justify-between items-start">
@@ -31,7 +48,8 @@ const TaskCard = ({ task, onPriorityChange, onDelete, onEdit }: { task: Task, on
         <div className="flex -space-x-2">
           {task.members.map((member, index) => <img key={index} src={member} alt="member" className="w-7 h-7 rounded-full border-2 border-white" />)}
         </div>
-        <div className="flex items-center gap-3 text-sm text-gray-500">
+        <div className="flex items-center gap-3 text-sm">
+          <span className={dueDateStyle}>{dueDateText}</span>
           <span>💬 {task.comments} comments</span>
           <span>📎 {task.files} files</span>
         </div>
@@ -140,6 +158,21 @@ export default function TaskBoard() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [editingTaskColumn, setEditingTaskColumn] = useState<'todo' | 'inProgress' | 'done'>('todo');
   const [activeFilter, setActiveFilter] = useState('All');
+  const [reminderTasks, setReminderTasks] = useState<Task[]>([]);
+
+  // Check for overdue or soon-due tasks
+  useEffect(() => {
+    const allTasks = [...todo, ...inProgress, ...done];
+    const now = new Date();
+    const oneDayInMs = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+    const reminders = allTasks.filter(task => {
+      if (!task.dueDate) return false;
+      const due = new Date(task.dueDate);
+      const timeDiff = due.getTime() - now.getTime();
+      return timeDiff <= oneDayInMs && timeDiff >= -oneDayInMs; // Due within 24 hours or overdue
+    });
+    setReminderTasks(reminders);
+  }, [todo, inProgress, done]);
 
   const handleDragEnd = (result: DropResult) => {
     const { source, destination } = result;
@@ -171,6 +204,11 @@ export default function TaskBoard() {
       <DragDropContext onDragEnd={handleDragEnd}>
         <div>
           <DashboardHeader />
+          {reminderTasks.length > 0 && (
+            <div className="bg-yellow-100 text-yellow-800 p-3 rounded-md mb-4">
+              <strong>Reminder:</strong> {reminderTasks.length} task(s) due soon or overdue: {reminderTasks.map(t => t.title).join(', ')}
+            </div>
+          )}
           <FilterBar activeFilter={activeFilter} setActiveFilter={setActiveFilter} />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <TaskColumn 

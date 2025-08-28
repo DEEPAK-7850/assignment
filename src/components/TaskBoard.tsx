@@ -1,34 +1,50 @@
-
 import { useState, useEffect } from "react";
-import { Plus, MoreHorizontal, Filter, Calendar, Share2, Edit2, Link, LayoutGrid, List, Trash2, Pencil } from "lucide-react";
+import { Plus, MoreHorizontal, Filter, Calendar, Share2, Edit2, Link, LayoutGrid, List, Trash2, Pencil, History, Clock, BellRing } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import type { DropResult } from "@hello-pangea/dnd";
 import { useSelector, useDispatch } from "react-redux";
 import type { RootState, AppDispatch } from "../redux/store";
 import { moveTask, deleteTask, changeTaskPriority } from "../redux/tasksSlice";
-import type { Task } from "../redux/tasksSlice";
+import type { Task, Activity } from "../redux/tasksSlice";
 import AddTaskModal from "./AddTaskModal";
 import EditTaskModal from "./EditTaskModal";
+import ActivityLogModal from "./ActivityLogModal";
 
-const TaskCard = ({ task, onPriorityChange, onDelete, onEdit }: { task: Task, onPriorityChange: () => void, onDelete: () => void, onEdit: () => void }) => {
+// This component is inside src/components/TaskBoard.tsx
+
+const TaskCard = ({ task, onPriorityChange, onDelete, onEdit, onViewActivity }: { task: Task, onPriorityChange: () => void, onDelete: () => void, onEdit: () => void, onViewActivity: () => void }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  // Determine due date styling
-  let dueDateStyle = "text-gray-500";
-  let dueDateText = task.dueDate ? `Due: ${task.dueDate}` : "No due date";
-  if (task.dueDate) {
-    const now = new Date();
-    const due = new Date(task.dueDate);
-    const timeDiff = due.getTime() - now.getTime();
-    const oneDayInMs = 24 * 60 * 60 * 1000;
-    if (timeDiff < -oneDayInMs) {
-      dueDateStyle = "text-red-500 font-medium"; // Overdue
-      dueDateText = `Overdue: ${task.dueDate}`;
-    } else if (timeDiff <= oneDayInMs) {
-      dueDateStyle = "text-yellow-600 font-medium"; // Due soon
-      dueDateText = `Due soon: ${task.dueDate}`;
+  // NEW: More detailed due date logic
+  const getDueDateInfo = () => {
+    if (!task.dueDate) {
+      return { style: 'text-gray-500', text: '' };
     }
-  }
+
+    const now = new Date();
+    const dueDate = new Date(task.dueDate);
+    // Reset time to compare dates only
+    now.setHours(0, 0, 0, 0); 
+    
+    const timeDiff = dueDate.getTime() - now.getTime();
+    const twentyFourHoursInMs = 24 * 60 * 60 * 1000;
+    const threeDaysInMs = 3 * twentyFourHoursInMs;
+
+    const formattedDate = dueDate.toLocaleDateString();
+
+    if (timeDiff < 0) {
+      return { style: 'text-red-500 font-bold', text: `Overdue` };
+    }
+    if (timeDiff < twentyFourHoursInMs) {
+      return { style: 'text-red-500 font-semibold', text: `Due Today` };
+    }
+    if (timeDiff < threeDaysInMs) {
+      return { style: 'text-yellow-600 font-semibold', text: `Due Soon` };
+    }
+    return { style: 'text-gray-500', text: `Due ${formattedDate}` };
+  };
+
+  const dueDateInfo = getDueDateInfo();
 
   return (
     <div className="bg-white p-4 rounded-xl border space-y-3 relative">
@@ -37,23 +53,30 @@ const TaskCard = ({ task, onPriorityChange, onDelete, onEdit }: { task: Task, on
         <button onClick={() => setIsMenuOpen(!isMenuOpen)} onBlur={() => setTimeout(() => setIsMenuOpen(false), 200)} className="text-gray-400 p-1 rounded-full hover:bg-gray-100"><MoreHorizontal size={20} /></button>
       </div>
       {isMenuOpen && (
-        <div className="absolute top-10 right-4 bg-white border rounded-md shadow-lg z-10 w-32">
+        <div className="absolute top-10 right-4 bg-white border rounded-md shadow-lg z-10 w-36">
           <ul>
             <li onMouseDown={onEdit} className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"><Pencil size={14} /> Edit</li>
+            <li onMouseDown={onViewActivity} className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"><History size={14} /> Activity Log</li>
             <li onMouseDown={onDelete} className="flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-gray-100 cursor-pointer"><Trash2 size={14} /> Delete</li>
           </ul>
         </div>
       )}
       <h3 className="font-bold text-lg">{task.title}</h3>
       <p className="text-sm text-gray-500">{task.description}</p>
-      <div className="flex justify-between items-center">
+      
+      <div className="flex justify-between items-center pt-2 border-t mt-3">
         <div className="flex -space-x-2">
           {task.members.map((member, index) => <img key={index} src={member} alt="member" className="w-7 h-7 rounded-full border-2 border-white" />)}
         </div>
-        <div className="flex items-center gap-3 text-sm">
-          <span className={dueDateStyle}>{dueDateText}</span>
-          <span>💬 {task.comments} comments</span>
-          <span>📎 {task.files} files</span>
+        <div className="flex items-center gap-4 text-sm text-gray-500">
+          {/* Display the new due date info */}
+          {task.dueDate && (
+            <span className={`flex items-center gap-1 ${dueDateInfo.style}`}>
+              <Clock size={16} /> {dueDateInfo.text}
+            </span>
+          )}
+          <span>💬 {task.comments}</span>
+          <span>📎 {task.files}</span>
         </div>
       </div>
     </div>
@@ -68,9 +91,10 @@ interface TaskColumnProps {
   dotColorClass: string;
   onAddTask?: () => void;
   onEditTask: (task: Task) => void;
+  onViewActivity: (task: Task) => void;
 }
 
-const TaskColumn = ({ title, tasks, columnId, borderColorClass, dotColorClass, onAddTask, onEditTask }: TaskColumnProps) => {
+const TaskColumn = ({ title, tasks, columnId, borderColorClass, dotColorClass, onAddTask, onEditTask, onViewActivity }: TaskColumnProps) => {
   const dispatch = useDispatch<AppDispatch>();
   const handleDeleteTask = (taskId: string) => { if (window.confirm("Are you sure?")) dispatch(deleteTask({ columnId, taskId })); };
   const handleChangePriority = (taskId: string) => dispatch(changeTaskPriority({ columnId, taskId }));
@@ -91,7 +115,7 @@ const TaskColumn = ({ title, tasks, columnId, borderColorClass, dotColorClass, o
               <Draggable key={task.id} draggableId={task.id} index={index}>
                 {(provided) => (
                   <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}>
-                    <TaskCard task={task} onDelete={() => handleDeleteTask(task.id)} onEdit={() => onEditTask(task)} onPriorityChange={() => handleChangePriority(task.id)}/>
+                    <TaskCard task={task} onDelete={() => handleDeleteTask(task.id)} onEdit={() => onEditTask(task)} onViewActivity={() => onViewActivity(task)} onPriorityChange={() => handleChangePriority(task.id)}/>
                   </div>
                 )}
               </Draggable>
@@ -123,8 +147,8 @@ const DashboardHeader = () => (
             <button className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-md font-medium"><Share2 size={18} /> Share</button>
             <div className="h-8 w-px bg-gray-300"></div>
             <div className="flex items-center gap-2">
-                 <button className="p-2 bg-indigo-600 text-white rounded-md"><LayoutGrid size={20} /></button>
-                 <button className="p-2 text-gray-400"><List size={20} /></button>
+                <button className="p-2 bg-indigo-600 text-white rounded-md"><LayoutGrid size={20} /></button>
+                <button className="p-2 text-gray-400"><List size={20} /></button>
             </div>
         </div>
     </div>
@@ -168,6 +192,23 @@ const FilterBar = ({ activeFilter, setActiveFilter }: FilterBarProps) => {
   );
 };
 
+const ReminderBanner = ({ tasks }: { tasks: Task[] }) => {
+    if (tasks.length === 0) {
+        return null;
+    }
+    return (
+        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 rounded-md mb-6 flex items-start gap-3">
+            <BellRing size={20} className="mt-1 flex-shrink-0" />
+            <div>
+                <p className="font-bold">Reminder</p>
+                <p className="text-sm">
+                    You have {tasks.length} task(s) due within 24 hours or overdue: {tasks.map(t => t.title).join(', ')}
+                </p>
+            </div>
+        </div>
+    );
+};
+
 export default function TaskBoard() {
   const { todo, inProgress, done } = useSelector((state: RootState) => state.tasks);
   const dispatch = useDispatch<AppDispatch>();
@@ -176,17 +217,17 @@ export default function TaskBoard() {
   const [editingTaskColumn, setEditingTaskColumn] = useState<'todo' | 'inProgress' | 'done'>('todo');
   const [activeFilter, setActiveFilter] = useState('All');
   const [reminderTasks, setReminderTasks] = useState<Task[]>([]);
+  const [viewingActivity, setViewingActivity] = useState<Activity[] | null>(null);
 
-  // Check for overdue or soon-due tasks
   useEffect(() => {
-    const allTasks = [...todo, ...inProgress, ...done];
+    const allTasks = [...todo, ...inProgress];
     const now = new Date();
-    const oneDayInMs = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+    const twentyFourHoursInMs = 24 * 60 * 60 * 1000;
     const reminders = allTasks.filter(task => {
       if (!task.dueDate) return false;
-      const due = new Date(task.dueDate);
-      const timeDiff = due.getTime() - now.getTime();
-      return timeDiff <= oneDayInMs && timeDiff >= -oneDayInMs; // Due within 24 hours or overdue
+      const dueDate = new Date(task.dueDate);
+      const timeDiff = dueDate.getTime() - now.getTime();
+      return timeDiff <= twentyFourHoursInMs && task.priority !== 'Completed';
     });
     setReminderTasks(reminders);
   }, [todo, inProgress, done]);
@@ -211,6 +252,10 @@ export default function TaskBoard() {
     setEditingTask(null);
   };
 
+  const handleViewActivity = (task: Task) => {
+    setViewingActivity(task.activity);
+  };
+
   const filterTasks = (tasks: Task[]) => {
     if (activeFilter === 'All') return tasks;
     return tasks.filter(task => task.priority === activeFilter);
@@ -221,11 +266,7 @@ export default function TaskBoard() {
       <DragDropContext onDragEnd={handleDragEnd}>
         <div>
           <DashboardHeader />
-          {reminderTasks.length > 0 && (
-            <div className="bg-yellow-100 text-yellow-800 p-3 rounded-md mb-4">
-              <strong>Reminder:</strong> {reminderTasks.length} task(s) due soon or overdue: {reminderTasks.map(t => t.title).join(', ')}
-            </div>
-          )}
+          <ReminderBanner tasks={reminderTasks} />
           <FilterBar activeFilter={activeFilter} setActiveFilter={setActiveFilter} />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <TaskColumn 
@@ -236,6 +277,7 @@ export default function TaskBoard() {
               dotColorClass="bg-blue-500" 
               onAddTask={() => setAddModalOpen(true)}
               onEditTask={(task) => handleOpenEditModal(task, 'todo')}
+              onViewActivity={handleViewActivity}
             />
             <TaskColumn 
               title="On Progress" 
@@ -244,6 +286,7 @@ export default function TaskBoard() {
               borderColorClass="border-yellow-500" 
               dotColorClass="bg-yellow-500" 
               onEditTask={(task) => handleOpenEditModal(task, 'inProgress')}
+              onViewActivity={handleViewActivity}
             />
             <TaskColumn 
               title="Done" 
@@ -252,6 +295,7 @@ export default function TaskBoard() {
               borderColorClass="border-green-500" 
               dotColorClass="bg-green-500" 
               onEditTask={(task) => handleOpenEditModal(task, 'done')}
+              onViewActivity={handleViewActivity}
             />
           </div>
         </div>
@@ -265,6 +309,11 @@ export default function TaskBoard() {
           columnId={editingTaskColumn}
         />
       )}
+      <ActivityLogModal 
+        isOpen={!!viewingActivity}
+        onClose={() => setViewingActivity(null)}
+        activities={viewingActivity || []} 
+      />
     </>
   );
 }

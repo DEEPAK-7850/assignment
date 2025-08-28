@@ -1,6 +1,13 @@
 
+
 import { createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
+
+// NEW: Interface for a single activity log entry
+export interface Activity {
+  action: string;
+  timestamp: string;
+}
 
 export interface Task {
   id: string;
@@ -11,7 +18,8 @@ export interface Task {
   comments: number;
   files: number;
   members: string[];
-  dueDate: string | null; // Added for due date
+  dueDate: string | null;
+  activity: Activity[]; // ADDED: activity log for each task
 }
 
 interface TasksState {
@@ -20,7 +28,6 @@ interface TasksState {
   done: Task[];
 }
 
-// Function to save the current state to localStorage
 const saveState = (state: TasksState) => {
   try {
     const serializedState = JSON.stringify(state);
@@ -30,21 +37,27 @@ const saveState = (state: TasksState) => {
   }
 };
 
-// Function to load state from localStorage or return initial data
 const loadState = (): TasksState => {
   try {
     const serializedState = localStorage.getItem('tasks');
     if (serializedState === null) {
-      // If nothing is in localStorage, return the default initial data
-      return {
-        todo: [ { id: "1", title: "Brainstorming", description: "Brainstorming brings team members' diverse experience into play.", priority: "Low", priorityColor: "bg-orange-100 text-orange-500", comments: 12, files: 0, members: ["https://i.pravatar.cc/24?img=1"], dueDate: null } ],
-        inProgress: [ { id: "4", title: "Onboarding Illustrations", description: "...", priority: "Low", priorityColor: "bg-orange-100 text-orange-500", comments: 14, files: 15, members: ["https://i.pravatar.cc/24?img=5"], dueDate: "2025-08-30" } ],
-        done: [ { id: "7", title: "Design System", description: "It just needs to adapt the UI from what you did before.", priority: "Completed", priorityColor: "bg-green-100 text-green-500", comments: 12, files: 15, members: ["https://i.pravatar.cc/24?img=9"], dueDate: "2025-08-27" } ]
+      return { // ADDED: activity array to initial tasks
+        todo: [ { id: "1", title: "Brainstorming", description: "Brainstorming brings team members' diverse experience into play.", priority: "Low", priorityColor: "bg-orange-100 text-orange-500", comments: 12, files: 0, members: ["https://i.pravatar.cc/24?img=1"], dueDate: null, activity: [] } ],
+        inProgress: [ { id: "4", title: "Onboarding Illustrations", description: "...", priority: "Low", priorityColor: "bg-orange-100 text-orange-500", comments: 14, files: 15, members: ["https://i.pravatar.cc/24?img=5"], dueDate: "2025-08-30", activity: [] } ],
+        done: [ { id: "7", title: "Design System", description: "It just needs to adapt the UI from what you did before.", priority: "Completed", priorityColor: "bg-green-100 text-green-500", comments: 12, files: 15, members: ["https://i.pravatar.cc/24?img=9"], dueDate: "2025-08-27", activity: [] } ]
       };
     }
-    return JSON.parse(serializedState);
+    // Ensure loaded tasks have an activity array
+    const loadedState = JSON.parse(serializedState);
+    Object.keys(loadedState).forEach(key => {
+      loadedState[key].forEach((task: any) => {
+        if (!task.activity) {
+          task.activity = [];
+        }
+      });
+    });
+    return loadedState;
   } catch (err) {
-    // If there's an error, return an empty state
     return { todo: [], inProgress: [], done: [] };
   }
 };
@@ -67,6 +80,7 @@ const tasksSlice = createSlice({
         files: 0,
         members: [],
         dueDate: action.payload.dueDate,
+        activity: [{ action: `Task created`, timestamp: new Date().toISOString() }], // ADDED: Log creation
       };
       state.todo.push(newTask);
       saveState(state);
@@ -74,8 +88,10 @@ const tasksSlice = createSlice({
     moveTask: (state, action: PayloadAction<{ sourceId: keyof TasksState, destinationId: keyof TasksState, sourceIndex: number, destinationIndex: number }>) => {
       const { sourceId, destinationId, sourceIndex, destinationIndex } = action.payload;
       const sourceColumn = state[sourceId];
-      const destColumn = state[destinationId];
       const [movedTask] = sourceColumn.splice(sourceIndex, 1);
+      
+      // ADDED: Log the move action
+      movedTask.activity.push({ action: `Moved from '${sourceId}' to '${destinationId}'`, timestamp: new Date().toISOString() });
       
       if (destinationId === 'done' && movedTask.priority !== 'Completed') {
         movedTask.priority = 'Completed';
@@ -85,13 +101,15 @@ const tasksSlice = createSlice({
         movedTask.priorityColor = 'bg-orange-100 text-orange-500';
       }
       
-      destColumn.splice(destinationIndex, 0, movedTask);
+      state[destinationId].splice(destinationIndex, 0, movedTask);
       saveState(state);
     },
     editTask: (state, action: PayloadAction<{ columnId: keyof TasksState, taskId: string, updates: { title: string; description: string; priority: 'Low' | 'High' | 'Completed'; dueDate: string | null } }>) => {
       const { columnId, taskId, updates } = action.payload;
       const task = state[columnId].find(task => task.id === taskId);
       if (task) {
+        // ADDED: Log the edit action
+        task.activity.push({ action: `Task details updated`, timestamp: new Date().toISOString() });
         task.title = updates.title;
         task.description = updates.description;
         task.priority = updates.priority;
@@ -111,6 +129,7 @@ const tasksSlice = createSlice({
       const { columnId, taskId } = action.payload;
       const task = state[columnId].find(task => task.id === taskId);
       if (task) {
+        const oldPriority = task.priority;
         if (columnId === 'done') {
           if (task.priority === 'Low') task.priority = 'High';
           else if (task.priority === 'High') task.priority = 'Completed';
@@ -118,6 +137,9 @@ const tasksSlice = createSlice({
         } else {
           task.priority = task.priority === 'Low' ? 'High' : 'Low';
         }
+        // ADDED: Log the priority change
+        task.activity.push({ action: `Priority changed from '${oldPriority}' to '${task.priority}'`, timestamp: new Date().toISOString() });
+
         if (task.priority === 'Low') task.priorityColor = 'bg-orange-100 text-orange-500';
         else if (task.priority === 'High') task.priorityColor = 'bg-red-100 text-red-500';
         else task.priorityColor = 'bg-green-100 text-green-500';

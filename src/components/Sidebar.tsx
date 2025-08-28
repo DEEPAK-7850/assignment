@@ -1,5 +1,3 @@
-
-
 import {
     LayoutDashboard,
     MessageSquare,
@@ -20,11 +18,11 @@ import {
     const [expanded, setExpanded] = useState(false);
   
     return (
-      <aside className={`h-screen bg-white border-r-3 border-gray-300 p-4 flex flex-col justify-between transition-all duration-300 ease-in-out ${expanded ? 'w-64' : 'w-20'}`}>
+      <aside className={`h-[1280px] bg-white border-r-3 border-gray-300 p-4 flex flex-col justify-between transition-all duration-300 ease-in-out ${expanded ? 'w-64' : 'w-20'}`}>
         <SidebarContext.Provider value={{ expanded }}>
           <div>
             {/* Logo */}
-            <div className="flex items-center justify-between pb-1 mb-4 border-b-3 border-gray-300">
+            <div className="flex items-center justify-between pb-1 mb-4 border-3 rounded-lg border-gray-300">
               <div className={`flex items-center gap-2 overflow-hidden transition-all ${expanded ? "w-40" : "w-0"}`}>
                 <div className="w-8 h-8 bg-indigo-600 rounded-lg shrink-0"></div>
                 <h1 className="text-xl font-bold">Project M.</h1>
@@ -38,7 +36,7 @@ import {
             </div>
   
             {/* Main Navigation */}
-            <ul className="flex-1 space-y-1">
+            <ul className="flex-1 border-3 border-gray-300 rounded-lg space-y-1">
               <SidebarItem icon={<LayoutDashboard size={20} />} text="Home" />
               <SidebarItem icon={<MessageSquare size={20} />} text="Messages" />
               <SidebarItem icon={<CheckSquare size={20} />} text="Tasks" active />
@@ -49,7 +47,7 @@ import {
             <hr className="my-6 border-gray-300" />
   
             {/* Projects Navigation */}
-            <div className="space-y-2">
+            <div className="space-y-2 rounded-lg p-2 border-3 border-gray-300">
               <div className={`flex items-center justify-between px-2 overflow-hidden transition-all ${expanded ? 'w-full' : 'w-0 h-0'}`}>
                 <h2 className="text-sm font-bold text-gray-400 uppercase">My Projects</h2>
                 <button className="p-1 hover:bg-gray-100 rounded"><Plus size={16} /></button>
@@ -64,7 +62,7 @@ import {
           </div>
   
           {/* Bottom "Thoughts" Block */}
-          <div className={`bg-gray-50 p-4 rounded-xl text-center relative overflow-hidden transition-all ${expanded ? 'mt-6' : 'h-0 mt-0 p-0'}`}>
+          <div className={`bg-gray-50 p-4 rounded-xl text-center relative overflow-hidden transition-all ${expanded ? '' : 'h-0 mt-6 p-0'}`}>
             <div className={`w-12 h-12 bg-gray-200 rounded-full mx-auto flex items-center justify-center absolute -top-6 left-1/2 -translate-x-1/2 transition-all ${!expanded && 'opacity-0'}`}>
               <Lamp className="text-yellow-500" />
             </div>

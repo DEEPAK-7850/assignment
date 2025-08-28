@@ -3,27 +3,19 @@
 import { useState } from "react";
 import { Plus, MoreHorizontal, Filter, Calendar, Share2, Edit2, Link, LayoutGrid, List, Trash2, Pencil } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
-
-// Redux Imports
 import { useSelector, useDispatch } from "react-redux";
 import { RootState, AppDispatch } from "../redux/store";
 import { moveTask, deleteTask, changeTaskPriority, Task } from "../redux/tasksSlice";
-
-// Component Imports
 import AddTaskModal from "./AddTaskModal";
-import EditTaskModal from "./EditTaskModal"; 
+import EditTaskModal from "./EditTaskModal";
 
-// ====================================================================================
-// TASK CARD COMPONENT
-// ====================================================================================
-const TaskCard = ({ task, onDelete, onEdit, onChangePriority }: { task: Task; onDelete: () => void; onEdit: () => void; onChangePriority: () => void; }) => {
+const TaskCard = ({ task, onPriorityChange, onDelete, onEdit }: { task: Task, onPriorityChange: () => void, onDelete: () => void, onEdit: () => void }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-
   return (
     <div className="bg-white p-4 rounded-xl border space-y-3 relative">
       <div className="flex justify-between items-start">
-        <button onClick={onChangePriority} className={`text-xs font-semibold px-2 py-1 rounded-md ${task.priorityColor}`}>{task.priority}</button>
-        <button onClick={() => setIsMenuOpen(!isMenuOpen)} onBlur={() => setIsMenuOpen(false)} className="text-gray-400 p-1 rounded-full hover:bg-gray-100"><MoreHorizontal size={20} /></button>
+        <button onClick={onPriorityChange} className={`text-xs font-semibold px-2 py-1 rounded-md ${task.priorityColor}`}>{task.priority}</button>
+        <button onClick={() => setIsMenuOpen(!isMenuOpen)} onBlur={() => setTimeout(() => setIsMenuOpen(false), 200)} className="text-gray-400 p-1 rounded-full hover:bg-gray-100"><MoreHorizontal size={20} /></button>
       </div>
       {isMenuOpen && (
         <div className="absolute top-10 right-4 bg-white border rounded-md shadow-lg z-10 w-32">
@@ -48,22 +40,10 @@ const TaskCard = ({ task, onDelete, onEdit, onChangePriority }: { task: Task; on
   );
 };
 
-// ====================================================================================
-// TASK COLUMN COMPONENT (Now dispatches actions directly)
-// ====================================================================================
 const TaskColumn = ({ title, tasks, columnId, borderColorClass, dotColorClass, onAddTask, onEditTask }) => {
   const dispatch = useDispatch<AppDispatch>();
-
-  const handleDeleteTask = (taskId: string) => {
-    if (window.confirm("Are you sure you want to delete this task?")) {
-      dispatch(deleteTask({ columnId, taskId }));
-    }
-  };
-
-  const handleChangePriority = (taskId: string) => {
-    dispatch(changeTaskPriority({ columnId, taskId }));
-  };
-
+  const handleDeleteTask = (taskId: string) => { if (window.confirm("Are you sure?")) dispatch(deleteTask({ columnId, taskId })); };
+  const handleChangePriority = (taskId: string) => dispatch(changeTaskPriority({ columnId, taskId }));
   return (
     <div className="w-full bg-gray-100 rounded-lg p-4 flex flex-col">
       <div className={`flex justify-between items-center border-b-4 ${borderColorClass} pb-4 mb-4`}>
@@ -72,11 +52,7 @@ const TaskColumn = ({ title, tasks, columnId, borderColorClass, dotColorClass, o
           <h2 className="font-bold text-lg">{title}</h2>
           <span className="bg-gray-200 text-gray-600 text-sm font-semibold rounded-full px-2 py-0.5">{tasks.length}</span>
         </div>
-        {onAddTask && (
-          <button onClick={onAddTask} className="p-1 text-gray-500 hover:bg-gray-200 rounded-md">
-            <Plus size={20} />
-          </button>
-        )}
+        {onAddTask && <button onClick={onAddTask} className="p-1 text-gray-500 hover:bg-gray-200 rounded-md"><Plus size={20} /></button>}
       </div>
       <Droppable droppableId={columnId}>
         {(provided) => (
@@ -85,12 +61,7 @@ const TaskColumn = ({ title, tasks, columnId, borderColorClass, dotColorClass, o
               <Draggable key={task.id} draggableId={task.id} index={index}>
                 {(provided) => (
                   <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}>
-                    <TaskCard
-                      task={task}
-                      onDelete={() => handleDeleteTask(task.id)}
-                      onEdit={() => onEditTask(task)}
-                      onChangePriority={() => handleChangePriority(task.id)}
-                    />
+                    <TaskCard task={task} onDelete={() => handleDeleteTask(task.id)} onEdit={() => onEditTask(task)} onChangePriority={() => handleChangePriority(task.id)}/>
                   </div>
                 )}
               </Draggable>
@@ -103,9 +74,6 @@ const TaskColumn = ({ title, tasks, columnId, borderColorClass, dotColorClass, o
   );
 };
 
-// ====================================================================================
-// HEADER & FILTER BAR
-// ====================================================================================
 const DashboardHeader = () => (
     <div className="flex justify-between items-center mb-6">
         <div className="flex items-center gap-3">
@@ -132,49 +100,70 @@ const DashboardHeader = () => (
     </div>
 );
 
-const FilterBar = () => (
+const FilterBar = ({ activeFilter, setActiveFilter }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const handleSelectFilter = (filter) => {
+    setActiveFilter(filter);
+    setIsOpen(false);
+  };
+
+  return (
     <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center gap-3">
-            <button className="flex items-center gap-2 border rounded-md px-3 py-1.5 hover:bg-gray-100"><Filter size={16} /> Filter</button>
-            <button className="flex items-center gap-2 border rounded-md px-3 py-1.5 hover:bg-gray-100"><Calendar size={16} /> Today</button>
-        </div>
+      <div className="flex items-center gap-3 relative">
+        <button onClick={() => setIsOpen(!isOpen)} onBlur={() => setTimeout(() => setIsOpen(false), 200)} className="flex items-center gap-2 border rounded-md px-3 py-1.5 hover:bg-gray-100">
+          <Filter size={16} /> Filter
+        </button>
+        {isOpen && (
+          <div className="absolute top-full mt-2 bg-white border rounded-md shadow-lg z-20 w-40">
+            <ul>
+              <li onMouseDown={() => handleSelectFilter('All')} className="px-3 py-2 text-sm hover:bg-gray-100 cursor-pointer">All</li>
+              <li onMouseDown={() => handleSelectFilter('Low')} className="px-3 py-2 text-sm hover:bg-gray-100 cursor-pointer">Low Priority</li>
+              <li onMouseDown={() => handleSelectFilter('High')} className="px-3 py-2 text-sm hover:bg-gray-100 cursor-pointer">High Priority</li>
+              <li onMouseDown={() => handleSelectFilter('Completed')} className="px-3 py-2 text-sm hover:bg-gray-100 cursor-pointer">Completed</li>
+            </ul>
+          </div>
+        )}
+        <span className="text-sm text-gray-500">Current filter: <span className="font-medium text-gray-800">{activeFilter}</span></span>
+      </div>
+      <button className="flex items-center gap-2 border rounded-md px-3 py-1.5 hover:bg-gray-100">
+        <Calendar size={16} /> Today
+      </button>
     </div>
-);
+  );
+};
 
-
-// ====================================================================================
-// MAIN TASK BOARD COMPONENT
-// ====================================================================================
 export default function TaskBoard() {
-  // 1. Data now comes from the Redux store
   const { todo, inProgress, done } = useSelector((state: RootState) => state.tasks);
   const dispatch = useDispatch<AppDispatch>();
-  
-  // 2. Local state is only for UI, like managing modals
   const [isAddModalOpen, setAddModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [editingTaskColumn, setEditingTaskColumn] = useState<'todo' | 'inProgress' | 'done'>('todo');
+  const [activeFilter, setActiveFilter] = useState('All');
 
-  // 3. Drag and Drop handler now dispatches a Redux action
   const handleDragEnd = (result: DropResult) => {
     const { source, destination } = result;
     if (!destination) return;
-
     dispatch(moveTask({
-      sourceId: source.droppableId as 'todo' | 'inProgress' | 'done',
-      destinationId: destination.droppableId as 'todo' | 'inProgress' | 'done',
+      sourceId: source.droppableId as any,
+      destinationId: destination.droppableId as any,
       sourceIndex: source.index,
       destinationIndex: destination.index,
     }));
   };
-  
-  // Handlers to control the Edit Modal
+
   const handleOpenEditModal = (task: Task, columnId: 'todo' | 'inProgress' | 'done') => {
     setEditingTask(task);
     setEditingTaskColumn(columnId);
   };
+
   const handleCloseEditModal = () => {
     setEditingTask(null);
+  };
+
+  const filterTasks = (tasks: Task[]) => {
+    if (activeFilter === 'All') return tasks;
+    return tasks.filter(task => task.priority === activeFilter);
   };
 
   return (
@@ -182,11 +171,11 @@ export default function TaskBoard() {
       <DragDropContext onDragEnd={handleDragEnd}>
         <div>
           <DashboardHeader />
-          <FilterBar />
+          <FilterBar activeFilter={activeFilter} setActiveFilter={setActiveFilter} />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <TaskColumn 
               title="To Do" 
-              tasks={todo} 
+              tasks={filterTasks(todo)}
               columnId="todo" 
               borderColorClass="border-blue-500" 
               dotColorClass="bg-blue-500" 
@@ -195,7 +184,7 @@ export default function TaskBoard() {
             />
             <TaskColumn 
               title="On Progress" 
-              tasks={inProgress} 
+              tasks={filterTasks(inProgress)}
               columnId="inProgress" 
               borderColorClass="border-yellow-500" 
               dotColorClass="bg-yellow-500" 
@@ -203,7 +192,7 @@ export default function TaskBoard() {
             />
             <TaskColumn 
               title="Done" 
-              tasks={done} 
+              tasks={filterTasks(done)}
               columnId="done" 
               borderColorClass="border-green-500" 
               dotColorClass="bg-green-500" 
@@ -212,14 +201,7 @@ export default function TaskBoard() {
           </div>
         </div>
       </DragDropContext>
-      
-      {/* The Add Task modal no longer needs the onAddTask prop */}
-      <AddTaskModal 
-        isOpen={isAddModalOpen} 
-        onClose={() => setAddModalOpen(false)}
-      />
-
-      {/* Conditionally render the Edit Modal */}
+      <AddTaskModal isOpen={isAddModalOpen} onClose={() => setAddModalOpen(false)} />
       {editingTask && (
         <EditTaskModal 
           isOpen={!!editingTask} 

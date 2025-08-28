@@ -1,8 +1,9 @@
 
 import { useState, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
-import { AppDispatch } from '../redux/store';
-import { editTask, Task } from '../redux/tasksSlice';
+import type { AppDispatch } from '../redux/store';
+import { editTask } from '../redux/tasksSlice';
+import type { Task } from '../redux/tasksSlice';
 import { X } from 'lucide-react';
 
 interface EditTaskModalProps {

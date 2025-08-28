@@ -12,8 +12,13 @@ import {
   ChevronRight,
 } from "lucide-react"
 import { useState, createContext, useContext } from "react"
+import type { ReactNode } from "react"
 
-const SidebarContext = createContext()
+interface SidebarContextType {
+  expanded: boolean;
+}
+
+const SidebarContext = createContext<SidebarContextType | undefined>(undefined)
 
 export default function Sidebar() {
   const [expanded, setExpanded] = useState(false)
@@ -85,8 +90,16 @@ export default function Sidebar() {
   )
 }
 
-export function SidebarItem({ icon, text, active, alert }) {
-  const { expanded } = useContext(SidebarContext)
+interface SidebarItemProps {
+  icon: ReactNode;
+  text: string;
+  active?: boolean;
+  alert?: boolean;
+}
+
+export function SidebarItem({ icon, text, active = false, alert = false }: SidebarItemProps) {
+  const context = useContext(SidebarContext);
+  const expanded = context?.expanded ?? false;
 
   return (
     <li

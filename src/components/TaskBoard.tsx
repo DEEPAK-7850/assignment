@@ -1,10 +1,12 @@
 
 import { useState, useEffect } from "react";
 import { Plus, MoreHorizontal, Filter, Calendar, Share2, Edit2, Link, LayoutGrid, List, Trash2, Pencil } from "lucide-react";
-import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import type { DropResult } from "@hello-pangea/dnd";
 import { useSelector, useDispatch } from "react-redux";
-import { RootState, AppDispatch } from "../redux/store";
-import { moveTask, deleteTask, changeTaskPriority, Task } from "../redux/tasksSlice";
+import type { RootState, AppDispatch } from "../redux/store";
+import { moveTask, deleteTask, changeTaskPriority } from "../redux/tasksSlice";
+import type { Task } from "../redux/tasksSlice";
 import AddTaskModal from "./AddTaskModal";
 import EditTaskModal from "./EditTaskModal";
 
@@ -58,7 +60,17 @@ const TaskCard = ({ task, onPriorityChange, onDelete, onEdit }: { task: Task, on
   );
 };
 
-const TaskColumn = ({ title, tasks, columnId, borderColorClass, dotColorClass, onAddTask, onEditTask }) => {
+interface TaskColumnProps {
+  title: string;
+  tasks: Task[];
+  columnId: 'todo' | 'inProgress' | 'done';
+  borderColorClass: string;
+  dotColorClass: string;
+  onAddTask?: () => void;
+  onEditTask: (task: Task) => void;
+}
+
+const TaskColumn = ({ title, tasks, columnId, borderColorClass, dotColorClass, onAddTask, onEditTask }: TaskColumnProps) => {
   const dispatch = useDispatch<AppDispatch>();
   const handleDeleteTask = (taskId: string) => { if (window.confirm("Are you sure?")) dispatch(deleteTask({ columnId, taskId })); };
   const handleChangePriority = (taskId: string) => dispatch(changeTaskPriority({ columnId, taskId }));
@@ -75,11 +87,11 @@ const TaskColumn = ({ title, tasks, columnId, borderColorClass, dotColorClass, o
       <Droppable droppableId={columnId}>
         {(provided) => (
           <div {...provided.droppableProps} ref={provided.innerRef} className="flex-1 space-y-4">
-            {tasks.map((task, index) => (
+            {tasks.map((task: Task, index: number) => (
               <Draggable key={task.id} draggableId={task.id} index={index}>
                 {(provided) => (
                   <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}>
-                    <TaskCard task={task} onDelete={() => handleDeleteTask(task.id)} onEdit={() => onEditTask(task)} onChangePriority={() => handleChangePriority(task.id)}/>
+                    <TaskCard task={task} onDelete={() => handleDeleteTask(task.id)} onEdit={() => onEditTask(task)} onPriorityChange={() => handleChangePriority(task.id)}/>
                   </div>
                 )}
               </Draggable>
@@ -118,10 +130,15 @@ const DashboardHeader = () => (
     </div>
 );
 
-const FilterBar = ({ activeFilter, setActiveFilter }) => {
+interface FilterBarProps {
+  activeFilter: string;
+  setActiveFilter: (filter: string) => void;
+}
+
+const FilterBar = ({ activeFilter, setActiveFilter }: FilterBarProps) => {
   const [isOpen, setIsOpen] = useState(false);
 
-  const handleSelectFilter = (filter) => {
+  const handleSelectFilter = (filter: string) => {
     setActiveFilter(filter);
     setIsOpen(false);
   };

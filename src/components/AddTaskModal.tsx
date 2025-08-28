@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { AppDispatch } from '../redux/store';
+import type { AppDispatch } from '../redux/store';
 import { addTask } from '../redux/tasksSlice';
 import { X } from 'lucide-react';
 

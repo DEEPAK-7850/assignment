@@ -1,7 +1,7 @@
 import { createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
 
-// NEW: Interface for a single subtask
+
 export interface Subtask {
   id: string;
   text: string;

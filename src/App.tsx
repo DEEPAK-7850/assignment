@@ -1,22 +1,43 @@
-// src/App.tsx
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from './firebase';
+import { setUser, clearUser } from './redux/authSlice';
+import type { AppDispatch, RootState } from './redux/store';
 
-import Navbar from "./components/Navbar";
-import Sidebar from "./components/Sidebar";
-import TaskBoard from "./components/TaskBoard";
+// Pages aur components import karein
+import LoginPage from './pages/LoginPage';
+import SignupPage from './pages/SignupPage';
+import DashboardLayout from './DashboardLayout';
+import ProtectedRoute from './components/ProtectedRoute';
 
-function App() {
+export default function App() {
+  const dispatch = useDispatch<AppDispatch>();
+  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
+
+  // App load hone par Firebase auth state check karein
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        dispatch(setUser({ uid: user.uid, email: user.email }));
+      } else {
+        dispatch(clearUser());
+      }
+    });
+    return () => unsubscribe(); // Subscription cleanup
+  }, [dispatch]);
+
   return (
-    <div className="flex h-[1280px] bg-gray-50">
-      <Sidebar />
-      <main className="flex-1 flex flex-col">
-        <Navbar />
-      
-        <div className="flex-1 p-6">
-          <TaskBoard/>
-        </div>
-      </main>
-    </div>
+    <Router>
+      <Routes>
+        <Route path="/login" element={isAuthenticated ? <Navigate to="/" /> : <LoginPage />} />
+        <Route path="/signup" element={isAuthenticated ? <Navigate to="/" /> : <SignupPage />} />
+        <Route element={<ProtectedRoute />}>
+          <Route path="/" element={<DashboardLayout />} />
+        </Route>
+      </Routes>
+    </Router>
   );
 }
 
-export default App;

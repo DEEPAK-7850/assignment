@@ -1,16 +1,15 @@
 // src/redux/store.ts
 
 import { configureStore } from '@reduxjs/toolkit';
-// 1. Import the reducer from your tasks slice
 import tasksReducer from './tasksSlice';
+import authReducer from './authSlice'; // 1. Import the new auth reducer
 
 export const store = configureStore({
   reducer: {
-    // 2. Add the tasks reducer to the store
     tasks: tasksReducer,
+    auth: authReducer, // 2. Add the auth reducer to the store
   },
 });
 
-// These types are useful for working with TypeScript and Redux
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;

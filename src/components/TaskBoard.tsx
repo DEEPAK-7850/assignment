@@ -1,49 +1,57 @@
+
+
 import { useState, useEffect } from "react";
-import { Plus, MoreHorizontal, Filter, Calendar, Share2, Edit2, Link, LayoutGrid, List, Trash2, Pencil, History, Clock, BellRing } from "lucide-react";
+import { Plus, MoreHorizontal, Filter, Calendar, Share2, Edit2, Link, LayoutGrid, List, Trash2, Pencil, History, Clock, BellRing, CheckSquare, Square } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import type { DropResult } from "@hello-pangea/dnd";
 import { useSelector, useDispatch } from "react-redux";
 import type { RootState, AppDispatch } from "../redux/store";
-import { moveTask, deleteTask, changeTaskPriority } from "../redux/tasksSlice";
-import type { Task, Activity } from "../redux/tasksSlice";
+import { moveTask, deleteTask, changeTaskPriority, addSubtask, toggleSubtask } from "../redux/tasksSlice";
+import type { Task, Activity, Subtask } from "../redux/tasksSlice";
 import AddTaskModal from "./AddTaskModal";
 import EditTaskModal from "./EditTaskModal";
 import ActivityLogModal from "./ActivityLogModal";
 
-// This component is inside src/components/TaskBoard.tsx
+const SubtaskItem = ({ subtask, onToggle }: { subtask: Subtask, onToggle: () => void }) => (
+  <div className="flex items-center gap-2 group">
+    <button onClick={onToggle} className="text-gray-500 group-hover:text-indigo-600">
+      {subtask.completed ? <CheckSquare size={16} className="text-indigo-600" /> : <Square size={16} />}
+    </button>
+    <span className={`text-sm ${subtask.completed ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+      {subtask.text}
+    </span>
+  </div>
+);
 
-const TaskCard = ({ task, onPriorityChange, onDelete, onEdit, onViewActivity }: { task: Task, onPriorityChange: () => void, onDelete: () => void, onEdit: () => void, onViewActivity: () => void }) => {
+const TaskCard = ({ task, onPriorityChange, onDelete, onEdit, onViewActivity, onAddSubtask, onToggleSubtask }: { task: Task, onPriorityChange: () => void, onDelete: () => void, onEdit: () => void, onViewActivity: () => void, onAddSubtask: (text: string) => void, onToggleSubtask: (subtaskId: string) => void }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [newSubtaskText, setNewSubtaskText] = useState('');
 
-  // NEW: More detailed due date logic
-  const getDueDateInfo = () => {
-    if (!task.dueDate) {
-      return { style: 'text-gray-500', text: '' };
+  const handleAddSubtask = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newSubtaskText.trim()) {
+      onAddSubtask(newSubtaskText);
+      setNewSubtaskText('');
     }
+  };
 
+  const completedSubtasks = task.subtasks.filter(st => st.completed).length;
+  const totalSubtasks = task.subtasks.length;
+  const progressPercentage = totalSubtasks > 0 ? (completedSubtasks / totalSubtasks) * 100 : 0;
+
+  const getDueDateInfo = () => {
+    if (!task.dueDate) return null;
     const now = new Date();
     const dueDate = new Date(task.dueDate);
-    // Reset time to compare dates only
-    now.setHours(0, 0, 0, 0); 
-    
+    now.setHours(0, 0, 0, 0);
     const timeDiff = dueDate.getTime() - now.getTime();
     const twentyFourHoursInMs = 24 * 60 * 60 * 1000;
     const threeDaysInMs = 3 * twentyFourHoursInMs;
-
-    const formattedDate = dueDate.toLocaleDateString();
-
-    if (timeDiff < 0) {
-      return { style: 'text-red-500 font-bold', text: `Overdue` };
-    }
-    if (timeDiff < twentyFourHoursInMs) {
-      return { style: 'text-red-500 font-semibold', text: `Due Today` };
-    }
-    if (timeDiff < threeDaysInMs) {
-      return { style: 'text-yellow-600 font-semibold', text: `Due Soon` };
-    }
-    return { style: 'text-gray-500', text: `Due ${formattedDate}` };
+    if (timeDiff < 0) return { style: 'text-red-500 font-bold', text: 'Overdue' };
+    if (timeDiff < twentyFourHoursInMs) return { style: 'text-red-500 font-semibold', text: 'Due Today' };
+    if (timeDiff < threeDaysInMs) return { style: 'text-yellow-600 font-semibold', text: 'Due Soon' };
+    return { style: 'text-gray-500', text: `Due ${dueDate.toLocaleDateString()}` };
   };
-
   const dueDateInfo = getDueDateInfo();
 
   return (
@@ -64,17 +72,30 @@ const TaskCard = ({ task, onPriorityChange, onDelete, onEdit, onViewActivity }: 
       <h3 className="font-bold text-lg">{task.title}</h3>
       <p className="text-sm text-gray-500">{task.description}</p>
       
+      {totalSubtasks > 0 && (
+        <div className="space-y-2 pt-2">
+          <div className="flex items-center justify-between text-xs text-gray-500">
+            <span>Subtasks ({completedSubtasks}/{totalSubtasks})</span>
+            <span>{Math.round(progressPercentage)}%</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-1.5"><div className="bg-indigo-600 h-1.5 rounded-full" style={{ width: `${progressPercentage}%` }}></div></div>
+          <div className="space-y-1 max-h-24 overflow-y-auto pr-1">
+            {task.subtasks.map(subtask => <SubtaskItem key={subtask.id} subtask={subtask} onToggle={() => onToggleSubtask(subtask.id)} />)}
+          </div>
+        </div>
+      )}
+
+      <form onSubmit={handleAddSubtask} className="flex items-center gap-2 pt-2">
+        <input type="text" value={newSubtaskText} onChange={(e) => setNewSubtaskText(e.target.value)} placeholder="Add a subtask..." className="flex-grow bg-gray-100 border-transparent rounded-md px-2 py-1 text-sm focus:ring-indigo-500 focus:border-indigo-500"/>
+        <button type="submit" className="p-1 text-gray-500 hover:bg-gray-200 rounded-md"><Plus size={18} /></button>
+      </form>
+
       <div className="flex justify-between items-center pt-2 border-t mt-3">
         <div className="flex -space-x-2">
           {task.members.map((member, index) => <img key={index} src={member} alt="member" className="w-7 h-7 rounded-full border-2 border-white" />)}
         </div>
         <div className="flex items-center gap-4 text-sm text-gray-500">
-          {/* Display the new due date info */}
-          {task.dueDate && (
-            <span className={`flex items-center gap-1 ${dueDateInfo.style}`}>
-              <Clock size={16} /> {dueDateInfo.text}
-            </span>
-          )}
+          {dueDateInfo && (<span className={`flex items-center gap-1 ${dueDateInfo.style}`}><Clock size={16} /> {dueDateInfo.text}</span>)}
           <span>💬 {task.comments}</span>
           <span>📎 {task.files}</span>
         </div>
@@ -83,21 +104,31 @@ const TaskCard = ({ task, onPriorityChange, onDelete, onEdit, onViewActivity }: 
   );
 };
 
-interface TaskColumnProps {
-  title: string;
-  tasks: Task[];
-  columnId: 'todo' | 'inProgress' | 'done';
-  borderColorClass: string;
-  dotColorClass: string;
-  onAddTask?: () => void;
-  onEditTask: (task: Task) => void;
-  onViewActivity: (task: Task) => void;
-}
-
-const TaskColumn = ({ title, tasks, columnId, borderColorClass, dotColorClass, onAddTask, onEditTask, onViewActivity }: TaskColumnProps) => {
+const TaskColumn = ({ 
+  title, 
+  tasks, 
+  columnId, 
+  borderColorClass, 
+  dotColorClass, 
+  onAddTask, 
+  onEditTask, 
+  onViewActivity 
+}: { 
+  title: string; 
+  tasks: Task[]; 
+  columnId: 'todo' | 'inProgress' | 'done'; 
+  borderColorClass: string; 
+  dotColorClass: string; 
+  onAddTask?: () => void; 
+  onEditTask: (task: Task) => void; 
+  onViewActivity: (task: Task) => void; 
+}) => {
   const dispatch = useDispatch<AppDispatch>();
   const handleDeleteTask = (taskId: string) => { if (window.confirm("Are you sure?")) dispatch(deleteTask({ columnId, taskId })); };
   const handleChangePriority = (taskId: string) => dispatch(changeTaskPriority({ columnId, taskId }));
+  const handleAddSubtask = (taskId: string, text: string) => dispatch(addSubtask({ columnId, taskId, text }));
+  const handleToggleSubtask = (taskId: string, subtaskId: string) => dispatch(toggleSubtask({ columnId, taskId, subtaskId }));
+
   return (
     <div className="w-full bg-gray-200 rounded-lg p-4 flex flex-col">
       <div className={`flex justify-between items-center border-b-4 ${borderColorClass} pb-4 mb-4`}>
@@ -115,7 +146,7 @@ const TaskColumn = ({ title, tasks, columnId, borderColorClass, dotColorClass, o
               <Draggable key={task.id} draggableId={task.id} index={index}>
                 {(provided) => (
                   <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}>
-                    <TaskCard task={task} onDelete={() => handleDeleteTask(task.id)} onEdit={() => onEditTask(task)} onViewActivity={() => onViewActivity(task)} onPriorityChange={() => handleChangePriority(task.id)}/>
+                    <TaskCard task={task} onPriorityChange={() => handleChangePriority(task.id)} onDelete={() => handleDeleteTask(task.id)} onEdit={() => onEditTask(task)} onViewActivity={() => onViewActivity(task)} onAddSubtask={(text) => handleAddSubtask(task.id, text)} onToggleSubtask={(subtaskId) => handleToggleSubtask(task.id, subtaskId)} />
                   </div>
                 )}
               </Draggable>
@@ -147,26 +178,19 @@ const DashboardHeader = () => (
             <button className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-md font-medium"><Share2 size={18} /> Share</button>
             <div className="h-8 w-px bg-gray-300"></div>
             <div className="flex items-center gap-2">
-                <button className="p-2 bg-indigo-600 text-white rounded-md"><LayoutGrid size={20} /></button>
-                <button className="p-2 text-gray-400"><List size={20} /></button>
+                 <button className="p-2 bg-indigo-600 text-white rounded-md"><LayoutGrid size={20} /></button>
+                 <button className="p-2 text-gray-400"><List size={20} /></button>
             </div>
         </div>
     </div>
 );
 
-interface FilterBarProps {
-  activeFilter: string;
-  setActiveFilter: (filter: string) => void;
-}
-
-const FilterBar = ({ activeFilter, setActiveFilter }: FilterBarProps) => {
+const FilterBar = ({ activeFilter, setActiveFilter }: { activeFilter: string; setActiveFilter: (filter: string) => void }) => {
   const [isOpen, setIsOpen] = useState(false);
-
   const handleSelectFilter = (filter: string) => {
     setActiveFilter(filter);
     setIsOpen(false);
   };
-
   return (
     <div className="flex justify-between items-center mb-6">
       <div className="flex items-center gap-3 relative">
@@ -193,20 +217,18 @@ const FilterBar = ({ activeFilter, setActiveFilter }: FilterBarProps) => {
 };
 
 const ReminderBanner = ({ tasks }: { tasks: Task[] }) => {
-    if (tasks.length === 0) {
-        return null;
-    }
-    return (
-        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 rounded-md mb-6 flex items-start gap-3">
-            <BellRing size={20} className="mt-1 flex-shrink-0" />
-            <div>
-                <p className="font-bold">Reminder</p>
-                <p className="text-sm">
-                    You have {tasks.length} task(s) due within 24 hours or overdue: {tasks.map(t => t.title).join(', ')}
-                </p>
-            </div>
-        </div>
-    );
+  if (tasks.length === 0) return null;
+  return (
+    <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 rounded-md mb-6 flex items-start gap-3">
+      <BellRing size={20} className="mt-1 flex-shrink-0" />
+      <div>
+        <p className="font-bold">Reminder</p>
+        <p className="text-sm">
+          You have {tasks.length} task(s) due within 24 hours or overdue: {tasks.map((t: Task) => t.title).join(', ')}
+        </p>
+      </div>
+    </div>
+  );
 };
 
 export default function TaskBoard() {
@@ -216,8 +238,8 @@ export default function TaskBoard() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [editingTaskColumn, setEditingTaskColumn] = useState<'todo' | 'inProgress' | 'done'>('todo');
   const [activeFilter, setActiveFilter] = useState('All');
-  const [reminderTasks, setReminderTasks] = useState<Task[]>([]);
   const [viewingActivity, setViewingActivity] = useState<Activity[] | null>(null);
+  const [reminderTasks, setReminderTasks] = useState<Task[]>([]);
 
   useEffect(() => {
     const allTasks = [...todo, ...inProgress];
@@ -251,7 +273,7 @@ export default function TaskBoard() {
   const handleCloseEditModal = () => {
     setEditingTask(null);
   };
-
+  
   const handleViewActivity = (task: Task) => {
     setViewingActivity(task.activity);
   };
@@ -269,51 +291,15 @@ export default function TaskBoard() {
           <ReminderBanner tasks={reminderTasks} />
           <FilterBar activeFilter={activeFilter} setActiveFilter={setActiveFilter} />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <TaskColumn 
-              title="To Do" 
-              tasks={filterTasks(todo)}
-              columnId="todo" 
-              borderColorClass="border-blue-500" 
-              dotColorClass="bg-blue-500" 
-              onAddTask={() => setAddModalOpen(true)}
-              onEditTask={(task) => handleOpenEditModal(task, 'todo')}
-              onViewActivity={handleViewActivity}
-            />
-            <TaskColumn 
-              title="On Progress" 
-              tasks={filterTasks(inProgress)}
-              columnId="inProgress" 
-              borderColorClass="border-yellow-500" 
-              dotColorClass="bg-yellow-500" 
-              onEditTask={(task) => handleOpenEditModal(task, 'inProgress')}
-              onViewActivity={handleViewActivity}
-            />
-            <TaskColumn 
-              title="Done" 
-              tasks={filterTasks(done)}
-              columnId="done" 
-              borderColorClass="border-green-500" 
-              dotColorClass="bg-green-500" 
-              onEditTask={(task) => handleOpenEditModal(task, 'done')}
-              onViewActivity={handleViewActivity}
-            />
+            <TaskColumn title="To Do" tasks={filterTasks(todo)} columnId="todo" borderColorClass="border-blue-500" dotColorClass="bg-blue-500" onAddTask={() => setAddModalOpen(true)} onEditTask={(task: Task) => handleOpenEditModal(task, 'todo')} onViewActivity={handleViewActivity} />
+            <TaskColumn title="On Progress" tasks={filterTasks(inProgress)} columnId="inProgress" borderColorClass="border-yellow-500" dotColorClass="bg-yellow-500" onEditTask={(task: Task) => handleOpenEditModal(task, 'inProgress')} onViewActivity={handleViewActivity} />
+            <TaskColumn title="Done" tasks={filterTasks(done)} columnId="done" borderColorClass="border-green-500" dotColorClass="bg-green-500" onEditTask={(task: Task) => handleOpenEditModal(task, 'done')} onViewActivity={handleViewActivity} />
           </div>
         </div>
       </DragDropContext>
       <AddTaskModal isOpen={isAddModalOpen} onClose={() => setAddModalOpen(false)} />
-      {editingTask && (
-        <EditTaskModal 
-          isOpen={!!editingTask} 
-          onClose={handleCloseEditModal} 
-          task={editingTask}
-          columnId={editingTaskColumn}
-        />
-      )}
-      <ActivityLogModal 
-        isOpen={!!viewingActivity}
-        onClose={() => setViewingActivity(null)}
-        activities={viewingActivity || []} 
-      />
+      {editingTask && <EditTaskModal isOpen={!!editingTask} onClose={handleCloseEditModal} task={editingTask} columnId={editingTaskColumn} />}
+      <ActivityLogModal isOpen={!!viewingActivity} onClose={() => setViewingActivity(null)} activities={viewingActivity || []} />
     </>
   );
 }

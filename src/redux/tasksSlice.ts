@@ -1,4 +1,5 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice } from '@reduxjs/toolkit';
+import type { PayloadAction } from '@reduxjs/toolkit';
 
 // NEW: Interface for a single subtask
 export interface Subtask {
@@ -52,7 +53,7 @@ const loadState = (): TasksState => {
         done: [ { id: "7", title: "Design System", description: "It just needs to adapt the UI from what you did before.", priority: "Completed", priorityColor: "bg-green-100 text-green-500", comments: 12, files: 15, members: ["https://i.pravatar.cc/24?img=9"], dueDate: "2025-08-20", activity: [], subtasks: [] } ]
       };
     }
-    const loadedState = JSON.parse(serializedState);
+    const loadedState = JSON.parse(serializedState) as TasksState;
     // Ensure loaded tasks from older versions have the new properties
     Object.values(loadedState).forEach((column: Task[]) => column.forEach(task => {
       if (!task.activity) task.activity = [];
